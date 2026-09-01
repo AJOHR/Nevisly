@@ -965,6 +965,147 @@ export default function ProjectionUpload() {
     loadInjuries();
   }, []);
 
+  useEffect(() => {
+    function handleYahooSnapshot(
+      event: Event
+    ) {
+      const customEvent =
+        event as CustomEvent<string>;
+  
+      let yahooPicks: Array<{
+        pickNumber: number;
+        playerName: string;
+        nhlTeam: string;
+        teamName: string;
+      }>;
+  
+      try {
+        yahooPicks =
+          JSON.parse(
+            customEvent.detail
+          );
+      } catch {
+        console.warn(
+          "[Nevisly Sync] Could not read Yahoo snapshot."
+        );
+        return;
+      }
+  
+      if (
+        !Array.isArray(yahooPicks) ||
+        yahooPicks.length === 0
+      ) {
+        return;
+      }
+  
+      const reconciledPicks: DraftPick[] =
+        [];
+  
+      const unmatched: Array<{
+        pickNumber: number;
+        playerName: string;
+        nhlTeam: string;
+      }> = [];
+  
+      for (
+        const yahooPick of yahooPicks
+      ) {
+        const {
+          pickNumber,
+          playerName,
+          nhlTeam,
+        } = yahooPick;
+  
+        const matchedPlayer =
+          players.find(
+            (player) =>
+              matchesYahooPlayerName(
+                playerName,
+                player.name
+              ) &&
+              normalizeYahooNhlTeam(
+                player.team
+              ) ===
+                normalizeYahooNhlTeam(
+                  nhlTeam
+                )
+          );
+  
+        if (!matchedPlayer) {
+          unmatched.push({
+            pickNumber,
+            playerName,
+            nhlTeam,
+          });
+  
+          continue;
+        }
+  
+        const matchedTeamId =
+          getSnakeTeamIdForPick(
+            pickNumber,
+            leagueTeams
+          );
+  
+        if (!matchedTeamId) {
+          continue;
+        }
+  
+        reconciledPicks.push({
+          playerId:
+            matchedPlayer.id,
+          fantasyTeamId:
+            matchedTeamId,
+          pickNumber,
+        });
+      }
+  
+      reconciledPicks.sort(
+        (a, b) =>
+          a.pickNumber -
+          b.pickNumber
+      );
+  
+      console.log(
+        `[Nevisly Sync] Authoritative Yahoo reconciliation: ${reconciledPicks.length}/${yahooPicks.length} matched`
+      );
+  
+      if (unmatched.length > 0) {
+        console.warn(
+          "[Nevisly Sync] Unmatched Yahoo players:",
+          unmatched
+        );
+      }
+  
+      /*
+       * IMPORTANT:
+       * Yahoo Round by Round is authoritative.
+       *
+       * We replace Nevisly's draft state with
+       * exactly the successfully matched Yahoo
+       * picks instead of layering them over stale
+       * mock-draft data.
+       */
+      setDraftPicks(
+        reconciledPicks
+      );
+    }
+  
+    window.addEventListener(
+      "nevisly-yahoo-snapshot",
+      handleYahooSnapshot
+    );
+  
+    return () => {
+      window.removeEventListener(
+        "nevisly-yahoo-snapshot",
+        handleYahooSnapshot
+      );
+    };
+  }, [
+    players,
+    leagueTeams,
+  ]);
 
   useEffect(() => {
     async function loadSchedule() {

@@ -1151,7 +1151,6 @@ export default function ProjectionUpload() {
             player:
               matchedPlayer.name,
             team:
-            team:
             fantasyTeams.find(
               (
                 team

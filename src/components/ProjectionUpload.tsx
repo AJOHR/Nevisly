@@ -1069,6 +1069,21 @@ export default function ProjectionUpload() {
       console.log(
         `[Nevisly Sync] Authoritative Yahoo reconciliation: ${reconciledPicks.length}/${yahooPicks.length} matched`
       );
+
+      if (
+        reconciledPicks.length !== yahooPicks.length
+      ) {
+        console.warn(
+          "[Nevisly Sync] Snapshot NOT applied because some Yahoo players were not matched.",
+          {
+            matched: reconciledPicks.length,
+            total: yahooPicks.length,
+            unmatched
+          }
+        );
+      
+        return;
+      }
   
       if (unmatched.length > 0) {
         console.warn(

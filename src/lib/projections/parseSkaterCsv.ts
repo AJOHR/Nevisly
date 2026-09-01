@@ -4,7 +4,8 @@ import type { SkaterProjection } from "@/types/player";
 function normalizeTeam(team: string) {
   const normalized = team
     .trim()
-    .toUpperCase();
+    .toUpperCase()
+    .replace(/\./g, "");
 
   const map: Record<string, string> = {
     ANAHEIM: "ANA",
@@ -94,6 +95,7 @@ function normalizeTeam(team: string) {
 
     ST_LOUIS: "STL",
     "ST. LOUIS": "STL",
+    "ST LOUIS": "STL",
     STL: "STL",
 
     TAMPA_BAY: "TBL",
@@ -274,6 +276,7 @@ export function parseSkaterCsv(
                           [
                             "Player",
                             "Name",
+                            "NAME",
                             "Player Name",
                             "PLAYER",
                             "player",
@@ -316,6 +319,15 @@ export function parseSkaterCsv(
                         .split(/[,/|]/)
                         .map(normalizePosition)
                         .filter(Boolean);
+
+                    // Skater importer only.
+                    if (
+                      positions.includes(
+                        "G"
+                      )
+                    ) {
+                      return null;
+                    }
 
                     return {
                       id:

@@ -1100,20 +1100,35 @@ export default function ProjectionUpload() {
         event: Event
       ) {
         const customEvent =
-        event as CustomEvent<{
-          pickNumber: number;
-          playerName: string;
-          nhlTeam: string;
-          teamName: string;
-        }>;
-    
-        const {
-          pickNumber,
-          playerName,
-          nhlTeam,
-          teamName,
-        } =
-          customEvent.detail;
+        event as CustomEvent<string>;
+      
+      let yahooPick: {
+        pickNumber: number;
+        playerName: string;
+        nhlTeam: string;
+        teamName: string;
+      };
+      
+      try {
+        yahooPick =
+          JSON.parse(
+            customEvent.detail
+          );
+      } catch {
+        console.warn(
+          "[Nevisly Sync] Could not read Yahoo pick."
+        );
+      
+        return;
+      }
+      
+      const {
+        pickNumber,
+        playerName,
+        nhlTeam,
+        teamName,
+      } =
+        yahooPick;
     
         const normalizedYahooName =
           normalizePlayerName(

@@ -363,6 +363,127 @@ function getTeamSchedule(
   return undefined;
 }
 
+function normalizeNamePart(
+  value: string
+) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(
+      /[\u0300-\u036f]/g,
+      ""
+    )
+    .replace(
+      /[^a-z0-9]/g,
+      ""
+    );
+}
+
+function matchesYahooPlayerName(
+  yahooName: string,
+  fullName: string
+) {
+  const yahoo =
+    yahooName
+      .trim()
+      .replace(/\s+/g, " ");
+
+  const full =
+    fullName
+      .trim()
+      .replace(/\s+/g, " ");
+
+  if (
+    normalizePlayerName(yahoo) ===
+    normalizePlayerName(full)
+  ) {
+    return true;
+  }
+
+  const yahooParts =
+    yahoo.split(" ");
+
+  const fullParts =
+    full.split(" ");
+
+  if (
+    yahooParts.length <
+      2 ||
+    fullParts.length <
+      2
+  ) {
+    return false;
+  }
+
+  const yahooFirst =
+    yahooParts[0]
+      .replace(".", "")
+      .trim();
+
+  const yahooLast =
+    yahooParts[
+      yahooParts.length -
+        1
+    ];
+
+  const fullFirst =
+    fullParts[0];
+
+  const fullLast =
+    fullParts[
+      fullParts.length -
+        1
+    ];
+
+  const firstInitialMatches =
+    normalizeNamePart(
+      yahooFirst
+    )[0] ===
+    normalizeNamePart(
+      fullFirst
+    )[0];
+
+  const lastNameMatches =
+    normalizeNamePart(
+      yahooLast
+    ) ===
+    normalizeNamePart(
+      fullLast
+    );
+
+  return (
+    firstInitialMatches &&
+    lastNameMatches
+  );
+}
+
+function normalizeYahooNhlTeam(
+  team: string
+) {
+  const normalized =
+    team
+      .trim()
+      .toUpperCase();
+
+  const aliases:
+    Record<string, string> = {
+      TB: "TBL",
+      LA: "LAK",
+      NJ: "NJD",
+      SJ: "SJS",
+      WAS: "WSH",
+      CLB: "CBJ",
+      MON: "MTL",
+    };
+
+  return (
+    aliases[
+      normalized
+    ] ??
+    normalized
+  );
+}
+
 export default function ProjectionUpload() {
   const [
     projectionSources,
@@ -828,6 +949,7 @@ export default function ProjectionUpload() {
     loadInjuries();
   }, []);
 
+
   useEffect(() => {
     async function loadSchedule() {
       try {
@@ -955,6 +1077,153 @@ export default function ProjectionUpload() {
       );
     }, [
       draftPicks,
+    ]);
+
+    useEffect(() => {
+      function handleYahooPick(
+        event: Event
+      ) {
+        const customEvent =
+        event as CustomEvent<{
+          pickNumber: number;
+          playerName: string;
+          nhlTeam: string;
+          teamName: string;
+        }>;
+    
+        const {
+          pickNumber,
+          playerName,
+          nhlTeam,
+          teamName,
+        } =
+          customEvent.detail;
+    
+        const normalizedYahooName =
+          normalizePlayerName(
+            playerName
+          );
+    
+          const matchedPlayer =
+          players.find(
+            (
+              player
+            ) =>
+              matchesYahooPlayerName(
+                playerName,
+                player.name
+              ) &&
+              normalizeYahooNhlTeam(
+                player.team
+              ) ===
+                normalizeYahooNhlTeam(
+                  nhlTeam
+                )
+          );
+    
+        if (!matchedPlayer) {
+          console.warn(
+            "[Nevisly Sync] Player not matched:",
+            playerName
+          );
+    
+          return;
+        }
+    
+        const matchedTeamId =
+  getSnakeTeamIdForPick(
+    pickNumber,
+    leagueTeams
+  );
+    
+        if (
+          draftedIds.has(
+            matchedPlayer.id
+          )
+        ) {
+          return;
+        }
+    
+        console.log(
+          "[Nevisly Sync] Applying pick:",
+          {
+            pickNumber,
+            player:
+              matchedPlayer.name,
+            team:
+            team:
+            fantasyTeams.find(
+              (
+                team
+              ) =>
+                team.id ===
+                matchedTeamId
+            )?.name ??
+            teamName,
+          }
+        );
+    
+        setDraftPicks(
+          (
+            current
+          ) => {
+            const alreadyExists =
+              current.some(
+                (
+                  pick
+                ) =>
+                  pick.pickNumber ===
+                    pickNumber ||
+                  pick.playerId ===
+                    matchedPlayer.id
+              );
+    
+            if (alreadyExists) {
+              return current;
+            }
+    
+            const next =
+              [
+                ...current,
+    
+                {
+                  playerId:
+                    matchedPlayer.id,
+    
+                    fantasyTeamId:
+                    matchedTeamId,
+    
+                  pickNumber,
+                },
+              ].sort(
+                (
+                  a,
+                  b
+                ) =>
+                  a.pickNumber -
+                  b.pickNumber
+              );
+    
+            return next;
+          }
+        );
+      }
+    
+      window.addEventListener(
+        "nevisly-yahoo-pick",
+        handleYahooPick
+      );
+    
+      return () => {
+        window.removeEventListener(
+          "nevisly-yahoo-pick",
+          handleYahooPick
+        );
+      };
+    }, [
+      players,
+      fantasyTeams,
+      draftedIds,
     ]);
 
   const ownerByPlayerId =

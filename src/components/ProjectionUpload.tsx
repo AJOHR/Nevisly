@@ -976,7 +976,7 @@ export default function ProjectionUpload() {
       const customEvent =
         event as CustomEvent<string>;
   
-        let yahooPicks: Array<{
+        let yahooPick: Array<{
           pickNumber: number;
           playerName: string;
           nhlTeam: string;
@@ -985,7 +985,7 @@ export default function ProjectionUpload() {
         }>;
 
       try {
-        yahooPicks =
+        yahooPick =
           JSON.parse(
             customEvent.detail
           );
@@ -1491,6 +1491,7 @@ export default function ProjectionUpload() {
       players,
       fantasyTeams,
       draftedIds,
+      leagueTeams,
     ]);
 
   const ownerByPlayerId =

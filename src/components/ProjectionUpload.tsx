@@ -2673,6 +2673,116 @@ export default function ProjectionUpload() {
               myDraftSlot,
             });
 
+            const currentRound =
+            Math.floor(
+              draftPicks.length /
+                leagueTeams
+            ) + 1;
+          
+          const isGoalie =
+            player.positions.includes(
+              "G"
+            );
+          
+          const isDefenseman =
+            player.positions.includes(
+              "D"
+            );
+          
+          const isForward =
+            player.positions.some(
+              (position) =>
+                position === "C" ||
+                position === "LW" ||
+                position === "RW"
+            );
+          
+          let draftStrategyBonus = 0;
+          
+          /*
+           * ROUND 1 — FOUNDATION
+           *
+           * Prefer an elite forward as the roster anchor.
+           * Defense is still allowed if the value gap is
+           * genuinely large, but D should not win Round 1
+           * simply because of positional scarcity.
+           */
+          if (currentRound === 1) {
+            if (isForward) {
+              draftStrategyBonus += 1.25;
+            }
+          
+            if (isDefenseman) {
+              draftStrategyBonus -= 1.5;
+            }
+          
+            if (isGoalie) {
+              draftStrategyBonus -= 4;
+            }
+          }
+          
+          /*
+           * ROUNDS 2–3 — ATTACK PREMIUM DEFENSE
+           *
+           * Once the elite forward foundation is secured,
+           * aggressively target the high-end D tier.
+           */
+          if (
+            currentRound >= 2 &&
+            currentRound <= 3
+          ) {
+            if (isDefenseman) {
+              draftStrategyBonus += 1.4;
+            }
+          
+            if (isGoalie) {
+              draftStrategyBonus -= 3;
+            }
+          }
+          
+          /*
+           * ROUNDS 4–5 — CONTINUE D BUILD,
+           * BUT WITH LESS FORCE
+           */
+          if (
+            currentRound >= 4 &&
+            currentRound <= 5
+          ) {
+            if (isDefenseman) {
+              draftStrategyBonus += 0.8;
+            }
+          
+            if (isGoalie) {
+              draftStrategyBonus -= 2.25;
+            }
+          }
+          
+          /*
+           * ROUNDS 6–8 — TRANSITION
+           *
+           * Strategy becomes less positional and
+           * increasingly about value/category needs.
+           */
+          if (
+            currentRound >= 6 &&
+            currentRound <= 8
+          ) {
+            if (isDefenseman) {
+              draftStrategyBonus += 0.25;
+            }
+          
+            if (isGoalie) {
+              draftStrategyBonus -= 1;
+            }
+          }
+          
+          /*
+           * ROUND 9+
+           *
+           * No generic skater-position bonus.
+           * Goalies are now allowed to compete normally.
+           */  
+
           return {
             ...player,
 

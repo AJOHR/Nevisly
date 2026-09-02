@@ -976,13 +976,14 @@ export default function ProjectionUpload() {
       const customEvent =
         event as CustomEvent<string>;
   
-      let yahooPicks: Array<{
-        pickNumber: number;
-        playerName: string;
-        nhlTeam: string;
-        teamName: string;
-      }>;
-  
+        let yahooPicks: Array<{
+          pickNumber: number;
+          playerName: string;
+          nhlTeam: string;
+          teamName: string;
+          positions?: string[];
+        }>;
+
       try {
         yahooPicks =
           JSON.parse(
@@ -1011,73 +1012,73 @@ export default function ProjectionUpload() {
         nhlTeam: string;
       }> = [];
   
-      for (
-        const yahooPick of yahooPicks
-      ) {
-        const {
-          pickNumber,
-          playerName,
-          nhlTeam,
-          positions = [],
-        } = yahooPick;
-  
-        const matchedTeamId =
-        getSnakeTeamIdForPick(
-          pickNumber,
-          leagueTeams
-        );
-      
-      if (
-        positions.includes("G")
-      ) {
-        reconciledPicks.push({
-          playerId:
-            `__yahoo_goalie_pick_${pickNumber}`,
-          fantasyTeamId:
-            matchedTeamId,
-          pickNumber,
-        });
-      
-        continue;
-      }
+        for (
+  const yahooPick of yahooPicks
+) {
+  const {
+    pickNumber,
+    playerName,
+    nhlTeam,
+    positions = [],
+  } = yahooPick;
 
-        const matchedPlayer =
-          players.find(
-            (player) =>
-              matchesYahooPlayerName(
-                playerName,
-                player.name
-              ) &&
-              normalizeYahooNhlTeam(
-                player.team
-              ) ===
-                normalizeYahooNhlTeam(
-                  nhlTeam
-                )
-          );
-  
-        if (!matchedPlayer) {
-          unmatched.push({
-            pickNumber,
-            playerName,
-            nhlTeam,
-          });
-  
-          continue;
-        }
-  
-        if (!matchedTeamId) {
-          continue;
-        }
-  
-        reconciledPicks.push({
-          playerId:
-            matchedPlayer.id,
-          fantasyTeamId:
-            matchedTeamId,
-          pickNumber,
-        });
-      }
+  const matchedTeamId =
+    getSnakeTeamIdForPick(
+      pickNumber,
+      leagueTeams
+    );
+
+  if (
+    positions.includes("G")
+  ) {
+    reconciledPicks.push({
+      playerId:
+        `__yahoo_goalie_pick_${pickNumber}`,
+
+      fantasyTeamId:
+        matchedTeamId,
+
+      pickNumber,
+    });
+
+    continue;
+  }
+
+  const matchedPlayer =
+    players.find(
+      (player) =>
+        matchesYahooPlayerName(
+          playerName,
+          player.name
+        ) &&
+        normalizeYahooNhlTeam(
+          player.team
+        ) ===
+          normalizeYahooNhlTeam(
+            nhlTeam
+          )
+    );
+
+  if (!matchedPlayer) {
+    unmatched.push({
+      pickNumber,
+      playerName,
+      nhlTeam,
+    });
+
+    continue;
+  }
+
+  reconciledPicks.push({
+    playerId:
+      matchedPlayer.id,
+
+    fantasyTeamId:
+      matchedTeamId,
+
+    pickNumber,
+  });
+}
   
       reconciledPicks.sort(
         (a, b) =>

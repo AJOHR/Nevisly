@@ -2240,7 +2240,7 @@ if (
 
             score:
               player.vor +
-              needBonus,
+              needBonus +
               tierScarcityBonus,
           };
         }

@@ -1916,6 +1916,16 @@ export default function ProjectionUpload() {
       teamCategoryStrength,
     ]);
 
+    const currentRound =
+
+    Math.floor(
+  
+      draftPicks.length /
+  
+        leagueTeams
+  
+    ) + 1;
+
   /*
    * --------------------------------------------------------
    * FIRST-PASS PLAYER RANKING
@@ -2908,12 +2918,6 @@ if (
               myDraftSlot,
             });
 
-            const currentRound =
-            Math.floor(
-              draftPicks.length /
-                leagueTeams
-            ) + 1;
-          
           const isGoalie =
             player.positions.includes(
               "G"
@@ -3967,13 +3971,6 @@ powerForwardBonus,
           lastPick.playerId
         )
       : undefined;
-
-  const currentRound =
-    Math.floor(
-      draftPicks.length /
-        leagueTeams
-    ) +
-    1;
 
   return (
     <main className="min-h-screen bg-zinc-950 text-white">

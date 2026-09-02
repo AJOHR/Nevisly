@@ -2977,7 +2977,7 @@ if (
                * above elite forwards.
                */
               draftStrategyBonus +=
-                cappedTierDrop >= 0.75
+                player.cappedTierDrop >= 0.75
                   ? 0.9
                   : 0.35;
             }

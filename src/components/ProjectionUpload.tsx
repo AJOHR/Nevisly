@@ -1012,15 +1012,23 @@ export default function ProjectionUpload() {
         nhlTeam: string;
       }> = [];
   
-        for (
-  const yahooPick of yahooPicks
-) {
-  const {
-    pickNumber,
-    playerName,
-    nhlTeam,
-    positions = [],
-  } = yahooPick;
+      for (
+
+        const yahooPick of yahooPicks
+      
+      ) {
+      
+        const {
+      
+          pickNumber,
+      
+          playerName,
+      
+          nhlTeam,
+      
+          positions = [],
+      
+        } = yahooPick;
 
   const matchedTeamId =
     getSnakeTeamIdForPick(

@@ -82,6 +82,10 @@ export type BaseRankedPlayer = SkaterProjection & {
 export type RankedPlayer = BaseRankedPlayer & {
   needBonus: number;
 
+  tierDrop: number;
+cappedTierDrop: number;
+tierScarcityBonus: number;
+
   h2hGain: number;
 
   scarcityBonus: number;

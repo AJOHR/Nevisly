@@ -976,7 +976,7 @@ export default function ProjectionUpload() {
       const customEvent =
         event as CustomEvent<string>;
   
-        let yahooPick: Array<{
+        let yahooPicks: Array<{
           pickNumber: number;
           playerName: string;
           nhlTeam: string;
@@ -985,7 +985,7 @@ export default function ProjectionUpload() {
         }>;
 
       try {
-        yahooPick =
+        yahooPicks =
           JSON.parse(
             customEvent.detail
           );
@@ -1286,13 +1286,13 @@ export default function ProjectionUpload() {
         const customEvent =
         event as CustomEvent<string>;
       
-        let yahooPicks: Array<{
+        let yahooPick: {
           pickNumber: number;
           playerName: string;
           nhlTeam: string;
           teamName: string;
           positions?: string[];
-        }>;
+        };
       
       try {
         yahooPick =

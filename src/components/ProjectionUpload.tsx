@@ -1917,6 +1917,97 @@ export default function ProjectionUpload() {
    * FIRST-PASS PLAYER RANKING
    * --------------------------------------------------------
    */
+
+  const currentRound =
+  Math.floor(
+    draftPicks.length /
+      leagueTeams
+  ) + 1;
+
+/*
+ * --------------------------------------------------------
+ * TIER DROP / POSITIONAL CLIFF
+ * --------------------------------------------------------
+ *
+ * This is different from generic scarcity.
+ *
+ * We measure how much fantasy value falls away
+ * behind a player at his broad position:
+ *
+ * D -> compare against other available D
+ * F -> compare against other available forwards
+ *
+ * We look at the next 3 players rather than only
+ * the next player so one near-identical player
+ * doesn't hide a real tier cliff.
+ */
+
+function getTierGroup(
+  player:
+    (typeof baseRankedPlayers)[number]
+) {
+  if (
+    player.positions.includes(
+      "D"
+    )
+  ) {
+    return "D";
+  }
+
+  if (
+    player.positions.includes(
+      "G"
+    )
+  ) {
+    return "G";
+  }
+
+  return "F";
+}
+
+const availableForTierAnalysis =
+  baseRankedPlayers.filter(
+    (player) =>
+      !draftedIds.has(
+        player.id
+      )
+  );
+
+const tierGroups = {
+  F: availableForTierAnalysis
+    .filter(
+      (player) =>
+        getTierGroup(player) ===
+        "F"
+    )
+    .sort(
+      (a, b) =>
+        b.vor - a.vor
+    ),
+
+  D: availableForTierAnalysis
+    .filter(
+      (player) =>
+        getTierGroup(player) ===
+        "D"
+    )
+    .sort(
+      (a, b) =>
+        b.vor - a.vor
+    ),
+
+  G: availableForTierAnalysis
+    .filter(
+      (player) =>
+        getTierGroup(player) ===
+        "G"
+    )
+    .sort(
+      (a, b) =>
+        b.vor - a.vor
+    ),
+};
+
   const rankedPlayers =
     useMemo<
       RankedPlayer[]
@@ -1927,6 +2018,142 @@ export default function ProjectionUpload() {
         ) => {
           let needBonus =
             0;
+
+            const tierGroup =
+  getTierGroup(
+    player
+  );
+
+const positionTier =
+  tierGroups[
+    tierGroup
+  ];
+
+const playerTierIndex =
+  positionTier.findIndex(
+    (candidate) =>
+      candidate.id ===
+      player.id
+  );
+
+let tierDrop = 0;
+
+if (
+  playerTierIndex >= 0
+) {
+  /*
+   * Look at the next three available players
+   * at the same broad position.
+   */
+  const nextPlayers =
+    positionTier.slice(
+      playerTierIndex + 1,
+      playerTierIndex + 4
+    );
+
+  if (
+    nextPlayers.length > 0
+  ) {
+    const nextAverageVor =
+      nextPlayers.reduce(
+        (
+          total,
+          candidate
+        ) =>
+          total +
+          candidate.vor,
+        0
+      ) /
+      nextPlayers.length;
+
+    tierDrop =
+      Math.max(
+        0,
+        player.vor -
+          nextAverageVor
+      );
+  }
+}
+
+/*
+ * Prevent extreme projection differences from
+ * producing absurd scarcity bonuses.
+ */
+const cappedTierDrop =
+  Math.min(
+    tierDrop,
+    2.5
+  );
+
+let tierScarcityBonus =
+  0;
+
+/*
+ * Round 1:
+ * virtually ignore tier scarcity.
+ *
+ * We want the elite foundation player first.
+ */
+if (currentRound === 1) {
+  tierScarcityBonus =
+    cappedTierDrop *
+    0.1;
+}
+
+/*
+ * Rounds 2-3:
+ * tier cliffs matter A LOT.
+ *
+ * This is where elite D can jump because
+ * passing on them may mean a huge drop by
+ * the next turn.
+ */
+else if (
+  currentRound >= 2 &&
+  currentRound <= 3
+) {
+  tierScarcityBonus =
+    cappedTierDrop *
+    0.9;
+}
+
+/*
+ * Rounds 4-5:
+ * still important, but category construction
+ * begins becoming more relevant.
+ */
+else if (
+  currentRound >= 4 &&
+  currentRound <= 5
+) {
+  tierScarcityBonus =
+    cappedTierDrop *
+    0.65;
+}
+
+/*
+ * Round 6+:
+ * tier drop remains useful but shouldn't
+ * dominate category needs.
+ */
+else {
+  tierScarcityBonus =
+    cappedTierDrop *
+    0.35;
+}
+
+/*
+ * Goalies will eventually get their own model.
+ * Don't let tier scarcity accidentally push
+ * them up early yet.
+ */
+if (
+  tierGroup === "G" &&
+  currentRound <= 8
+) {
+  tierScarcityBonus *=
+    0.25;
+}
 
           for (
             const category of
@@ -1951,6 +2178,12 @@ export default function ProjectionUpload() {
             ...player,
 
             needBonus,
+
+            tierDrop,
+
+  cappedTierDrop,
+
+  tierScarcityBonus,
 
             h2hGain:
               0,
@@ -2010,12 +2243,16 @@ export default function ProjectionUpload() {
             score:
               player.vor +
               needBonus,
+              tierScarcityBonus,
           };
         }
       );
     }, [
       baseRankedPlayers,
       teamNeedWeights,
+      draftedIds,
+      draftPicks.length,
+      leagueTeams,
     ]);
 
   const playerMap =
@@ -3059,6 +3296,7 @@ powerForwardBonus,
   h2h.matchupGain *
     1.25 +
   appliedScarcityBonus +
+  player.tierScarcityBonus +
   flexibilityBonus +
   scheduleBonus +
   ageRiskBonus +

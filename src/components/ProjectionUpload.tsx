@@ -1018,8 +1018,29 @@ export default function ProjectionUpload() {
           pickNumber,
           playerName,
           nhlTeam,
+          positions = [],
         } = yahooPick;
   
+        const matchedTeamId =
+        getSnakeTeamIdForPick(
+          pickNumber,
+          leagueTeams
+        );
+      
+      if (
+        positions.includes("G")
+      ) {
+        reconciledPicks.push({
+          playerId:
+            `__yahoo_goalie_pick_${pickNumber}`,
+          fantasyTeamId:
+            matchedTeamId,
+          pickNumber,
+        });
+      
+        continue;
+      }
+
         const matchedPlayer =
           players.find(
             (player) =>
@@ -1044,12 +1065,6 @@ export default function ProjectionUpload() {
   
           continue;
         }
-  
-        const matchedTeamId =
-          getSnakeTeamIdForPick(
-            pickNumber,
-            leagueTeams
-          );
   
         if (!matchedTeamId) {
           continue;
@@ -1262,12 +1277,13 @@ export default function ProjectionUpload() {
         const customEvent =
         event as CustomEvent<string>;
       
-      let yahooPick: {
-        pickNumber: number;
-        playerName: string;
-        nhlTeam: string;
-        teamName: string;
-      };
+        let yahooPicks: Array<{
+          pickNumber: number;
+          playerName: string;
+          nhlTeam: string;
+          teamName: string;
+          positions?: string[];
+        }>;
       
       try {
         yahooPick =
@@ -1287,9 +1303,61 @@ export default function ProjectionUpload() {
         playerName,
         nhlTeam,
         teamName,
-      } =
-        yahooPick;
+        positions = [],
+      } = yahooPick;
     
+      const isYahooGoalie =
+      positions.includes("G");
+    
+    if (isYahooGoalie) {
+      const goaliePlaceholderId =
+        `__yahoo_goalie_pick_${pickNumber}`;
+    
+      const matchedTeamId =
+        getSnakeTeamIdForPick(
+          pickNumber,
+          leagueTeams
+        );
+    
+      console.log(
+        "[Nevisly Sync] Tracking goalie pick:",
+        {
+          pickNumber,
+          playerName,
+          team:
+            matchedTeamId,
+        }
+      );
+    
+      setDraftPicks(
+        (current) => {
+          const withoutPickNumber =
+            current.filter(
+              (pick) =>
+                pick.pickNumber !==
+                pickNumber
+            );
+    
+          return [
+            ...withoutPickNumber,
+            {
+              playerId:
+                goaliePlaceholderId,
+              fantasyTeamId:
+                matchedTeamId,
+              pickNumber,
+            },
+          ].sort(
+            (a, b) =>
+              a.pickNumber -
+              b.pickNumber
+          );
+        }
+      );
+    
+      return;
+    }
+
         const normalizedYahooName =
           normalizePlayerName(
             playerName
@@ -1623,6 +1691,40 @@ export default function ProjectionUpload() {
           }
         );
 
+/*
+ * Overall skater replacement baseline.
+ *
+ * 10 starting skater spots per team:
+ * C x2, LW x2, RW x2, D x4.
+ *
+ * This gives us a neutral market baseline so
+ * positional replacement does not completely
+ * dominate VOR.
+ */
+const overallStarterCount =
+  leagueTeams * 10;
+
+const overallPlayers =
+  [...basePlayers].sort(
+    (a, b) =>
+      b.rawScore -
+      a.rawScore
+  );
+
+const overallReplacementIndex =
+  Math.max(
+    0,
+    Math.min(
+      overallStarterCount - 1,
+      overallPlayers.length - 1
+    )
+  );
+
+const overallReplacementScore =
+  overallPlayers[
+    overallReplacementIndex
+  ]?.rawScore ?? 0;
+
       const replacementScores: Record<
         string,
         number
@@ -1706,27 +1808,49 @@ export default function ProjectionUpload() {
             ] ??
             "—";
 
-          for (
-            const position of
-            eligiblePositions
-          ) {
-            const vor =
-              player.rawScore -
-              replacementScores[
-                position
-              ];
-
-            if (
-              vor >
-              bestVor
+            for (
+              const position of
+              eligiblePositions
             ) {
-              bestVor =
-                vor;
-
-              bestPosition =
-                position;
+              const positionalReplacement =
+                replacementScores[
+                  position
+                ];
+            
+              /*
+               * Blend positional replacement with the
+               * overall skater market.
+               *
+               * 55% positional:
+               * preserves legitimate position scarcity.
+               *
+               * 45% overall:
+               * prevents a weak D48 replacement player
+               * from making every good defenseman look
+               * overwhelmingly more valuable than elite
+               * forwards.
+               */
+              const blendedReplacement =
+                positionalReplacement *
+                  0.55 +
+                overallReplacementScore *
+                  0.45;
+            
+              const vor =
+                player.rawScore -
+                blendedReplacement;
+            
+              if (
+                vor >
+                bestVor
+              ) {
+                bestVor =
+                  vor;
+            
+                bestPosition =
+                  position;
+              }
             }
-          }
 
           if (
             !Number.isFinite(
@@ -1916,15 +2040,27 @@ export default function ProjectionUpload() {
       teamCategoryStrength,
     ]);
 
-    const currentRound =
+    const highestCompletedPick =
+  draftPicks.reduce(
+    (
+      highest,
+      pick
+    ) =>
+      Math.max(
+        highest,
+        pick.pickNumber
+      ),
+    0
+  );
 
-    Math.floor(
-  
-      draftPicks.length /
-  
-        leagueTeams
-  
-    ) + 1;
+const currentPickNumber =
+  highestCompletedPick + 1;
+
+const currentRound =
+  Math.floor(
+    highestCompletedPick /
+      leagueTeams
+  ) + 1;
 
   /*
    * --------------------------------------------------------
@@ -3960,9 +4096,17 @@ powerForwardBonus,
     "D",
   ];
 
-  const availableCount =
-    players.length -
-    draftPicks.length;
+  const draftedSkaterCount =
+  draftPicks.filter(
+    (pick) =>
+      !pick.playerId.startsWith(
+        "__yahoo_goalie_pick_"
+      )
+  ).length;
+
+const availableCount =
+  players.length -
+  draftedSkaterCount;
 
   const lastPick =
     draftPicks.length >
@@ -4003,10 +4147,7 @@ powerForwardBonus,
             <>
               <TopStat
                 label="Pick"
-                value={`${
-                  draftPicks.length +
-                  1
-                }`}
+                value={`${currentPickNumber}`}
               />
 
               <TopStat

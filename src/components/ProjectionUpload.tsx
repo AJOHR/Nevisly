@@ -2122,7 +2122,7 @@ else if (
 ) {
   tierScarcityBonus =
     cappedTierDrop *
-    0.9;
+    0.65;
 }
 
 /*
@@ -2971,7 +2971,15 @@ if (
             currentRound <= 3
           ) {
             if (isDefenseman) {
-              draftStrategyBonus += 1.4;
+              /*
+               * Early D strategy should help premium D,
+               * not automatically push every defenseman
+               * above elite forwards.
+               */
+              draftStrategyBonus +=
+                cappedTierDrop >= 0.75
+                  ? 0.9
+                  : 0.35;
             }
           
             if (isGoalie) {
@@ -3068,24 +3076,24 @@ if (currentRound === 1) {
 let appliedNeedBonus =
   player.needBonus;
 
-if (currentRound === 1) {
+const mySkaterCount =
+  myTeamPlayers.filter(
+    (teamPlayer) =>
+      !teamPlayer.positions.includes("G")
+  ).length;
+
+/*
+ * Category needs are unreliable when the roster
+ * is barely formed.
+ */
+if (mySkaterCount <= 2) {
+  appliedNeedBonus = 0;
+} else if (mySkaterCount <= 4) {
   appliedNeedBonus =
-    player.needBonus *
-    0.1;
-} else if (
-  currentRound >= 2 &&
-  currentRound <= 3
-) {
+    player.needBonus * 0.25;
+} else if (currentRound <= 5) {
   appliedNeedBonus =
-    player.needBonus *
-    0.35;
-} else if (
-  currentRound >= 4 &&
-  currentRound <= 5
-) {
-  appliedNeedBonus =
-    player.needBonus *
-    0.65;
+    player.needBonus * 0.6;
 }
 
 /*

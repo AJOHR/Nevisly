@@ -2709,11 +2709,11 @@ export default function ProjectionUpload() {
            */
           if (currentRound === 1) {
             if (isForward) {
-              draftStrategyBonus += 1.25;
+              draftStrategyBonus += 1.75;
             }
           
             if (isDefenseman) {
-              draftStrategyBonus -= 1.5;
+              draftStrategyBonus -= 1.75;
             }
           
             if (isGoalie) {
@@ -2783,6 +2783,72 @@ export default function ProjectionUpload() {
            * Goalies are now allowed to compete normally.
            */  
 
+/*
+ * ROUND-AWARE SCARCITY
+ *
+ * Positional scarcity should barely influence
+ * the first pick. VOR already contains a lot of
+ * replacement-level positional information.
+ *
+ * Scarcity becomes more important after the
+ * foundation pick and as tiers begin disappearing.
+ */
+let appliedScarcityBonus =
+  scarcity.scarcityBonus;
+
+if (currentRound === 1) {
+  appliedScarcityBonus =
+    scarcity.scarcityBonus *
+    0.2;
+} else if (
+  currentRound >= 2 &&
+  currentRound <= 3
+) {
+  appliedScarcityBonus =
+    scarcity.scarcityBonus *
+    0.65;
+} else if (
+  currentRound >= 4 &&
+  currentRound <= 5
+) {
+  appliedScarcityBonus =
+    scarcity.scarcityBonus *
+    0.85;
+}
+
+/*
+ * ROUND-AWARE ROSTER NEED
+ *
+ * Early in the draft almost every roster slot
+ * is empty, so "fills D", "fills LW", etc. should
+ * not meaningfully drive the first selections.
+ *
+ * Roster need becomes increasingly important
+ * once the team actually has a shape.
+ */
+let appliedNeedBonus =
+  player.needBonus;
+
+if (currentRound === 1) {
+  appliedNeedBonus =
+    player.needBonus *
+    0.1;
+} else if (
+  currentRound >= 2 &&
+  currentRound <= 3
+) {
+  appliedNeedBonus =
+    player.needBonus *
+    0.35;
+} else if (
+  currentRound >= 4 &&
+  currentRound <= 5
+) {
+  appliedNeedBonus =
+    player.needBonus *
+    0.65;
+}
+
           return {
             ...player,
 
@@ -2791,6 +2857,10 @@ export default function ProjectionUpload() {
 
             scarcityBonus:
               scarcity.scarcityBonus,
+
+              appliedScarcityBonus,
+
+              appliedNeedBonus,
 
             scarcityReasons:
               scarcity.reasons,
@@ -2819,15 +2889,18 @@ export default function ProjectionUpload() {
 
             scheduleBonus,
 
+            draftStrategyBonus,
+
             score:
             player.vor +
-            player.needBonus +
+            appliedNeedBonus +
             h2h.matchupGain *
               1.25 +
-            scarcity.scarcityBonus +
+            appliedScarcityBonus +
             flexibilityBonus +
             scheduleBonus +
-            ageRiskBonus,
+            ageRiskBonus +
+            draftStrategyBonus,
           };
         }
       );

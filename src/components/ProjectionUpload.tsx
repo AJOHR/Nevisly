@@ -2849,6 +2849,160 @@ if (currentRound === 1) {
     0.65;
 }
 
+/*
+ * CATEGORY BREADTH
+ *
+ * Early-round anchors should help across several
+ * categories rather than being narrow specialists.
+ *
+ * We cap each Z-score so one enormous category
+ * cannot dominate the breadth calculation.
+ */
+
+const cappedCategoryZScores = [
+  player.zScores.goals,
+  player.zScores.assists,
+  player.zScores.points,
+  player.zScores.ppp,
+  player.zScores.sog,
+  player.zScores.hits,
+  player.zScores.blocks,
+].map((value) =>
+  Math.max(
+    -2,
+    Math.min(
+      2,
+      value
+    )
+  )
+);
+
+const positiveCategoryCount =
+  cappedCategoryZScores.filter(
+    (value) =>
+      value >= 0.5
+  ).length;
+
+const eliteCategoryCount =
+  cappedCategoryZScores.filter(
+    (value) =>
+      value >= 1
+  ).length;
+
+/*
+ * Breadth rewards contributing meaningfully
+ * in several categories.
+ *
+ * Example:
+ * 6 useful cats + 3 elite cats
+ * receives much more credit than a player
+ * who is elite in only one category.
+ */
+const categoryBreadthScore =
+  positiveCategoryCount *
+    0.12 +
+  eliteCategoryCount *
+    0.08;
+
+let categoryBreadthBonus = 0;
+
+/*
+ * Breadth matters most when establishing
+ * the team's foundation.
+ */
+if (currentRound === 1) {
+  categoryBreadthBonus =
+    categoryBreadthScore *
+    (isForward
+      ? 1
+      : 0.4);
+} else if (
+  currentRound >= 2 &&
+  currentRound <= 3
+) {
+  categoryBreadthBonus =
+    categoryBreadthScore *
+    0.7;
+} else if (
+  currentRound >= 4 &&
+  currentRound <= 5
+) {
+  categoryBreadthBonus =
+    categoryBreadthScore *
+    0.4;
+} else {
+  categoryBreadthBonus =
+    categoryBreadthScore *
+    0.15;
+}
+
+
+/*
+ * POWER FORWARD SCORE
+ *
+ * In this league, the rare archetype is a
+ * forward who supplies elite offense while
+ * ALSO contributing SOG + HIT.
+ *
+ * We intentionally allow negative Z-scores
+ * here. A pure scorer with terrible HIT
+ * should not receive the same bonus as a
+ * true multi-category power forward.
+ */
+
+const powerForwardRaw =
+  player.zScores.goals *
+    0.20 +
+  player.zScores.points *
+    0.20 +
+  player.zScores.ppp *
+    0.15 +
+  player.zScores.sog *
+    0.20 +
+  player.zScores.hits *
+    0.25;
+
+let powerForwardBonus = 0;
+
+if (isForward) {
+  if (currentRound === 1) {
+    powerForwardBonus =
+      Math.max(
+        0,
+        powerForwardRaw
+      ) *
+      0.75;
+  } else if (
+    currentRound >= 2 &&
+    currentRound <= 3
+  ) {
+    powerForwardBonus =
+      Math.max(
+        0,
+        powerForwardRaw
+      ) *
+      0.5;
+  } else if (
+    currentRound >= 4 &&
+    currentRound <= 5
+  ) {
+    powerForwardBonus =
+      Math.max(
+        0,
+        powerForwardRaw
+      ) *
+      0.3;
+  } else {
+    powerForwardBonus =
+      Math.max(
+        0,
+        powerForwardRaw
+      ) *
+      0.1;
+  }
+}
+
+
           return {
             ...player,
 
@@ -2861,6 +3015,14 @@ if (currentRound === 1) {
               appliedScarcityBonus,
 
               appliedNeedBonus,
+
+              categoryBreadthScore,
+
+categoryBreadthBonus,
+
+powerForwardRaw,
+
+powerForwardBonus,
 
             scarcityReasons:
               scarcity.reasons,
@@ -2892,15 +3054,17 @@ if (currentRound === 1) {
             draftStrategyBonus,
 
             score:
-            player.vor +
-            appliedNeedBonus +
-            h2h.matchupGain *
-              1.25 +
-            appliedScarcityBonus +
-            flexibilityBonus +
-            scheduleBonus +
-            ageRiskBonus +
-            draftStrategyBonus,
+  player.vor +
+  appliedNeedBonus +
+  h2h.matchupGain *
+    1.25 +
+  appliedScarcityBonus +
+  flexibilityBonus +
+  scheduleBonus +
+  ageRiskBonus +
+  draftStrategyBonus +
+  categoryBreadthBonus +
+  powerForwardBonus,
           };
         }
       );

@@ -1918,12 +1918,6 @@ export default function ProjectionUpload() {
    * --------------------------------------------------------
    */
 
-  const currentRound =
-  Math.floor(
-    draftPicks.length /
-      leagueTeams
-  ) + 1;
-
 /*
  * --------------------------------------------------------
  * TIER DROP / POSITIONAL CLIFF
